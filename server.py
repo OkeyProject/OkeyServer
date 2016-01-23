@@ -24,7 +24,10 @@ def main(s, addr):
     data = recvDataDecoder(s.recv(2048))
     if data['command'] == "game":
         if "setting" in data and "log" in data['setting']:
-            print("Game Start")
+            if data['setting']['log'] != "verbose" or data['setting']['log'] != "separate":
+                s.sendall(Err("Unknown log type"))
+            else:
+                print("Game Start")
         else:
             s.sendall(Err("Setting Error"))
 
