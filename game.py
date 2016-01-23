@@ -9,37 +9,41 @@ def getHand(s,hand):
     msg = {"status": 1,"cards":[{"color":i[0],"number":i[1]} for i in hand]}
     s.sendall(json.dumps(msg))
 
-def ThrowCard():
-    return true
+def ThrowCard(data, turn, player):
+    if not "cards" in data:
+        return False, "Parse cards error"
+    if len(data['cards']) != 24:
+        return False, "Cards amount error"
+    return True
 
 def TakeCard(data, turn ,cardStack, discard):
     if not "from" in data:
-        return false, "Where to take card?"
+        return False, "Where to take card?"
     if data['from'] != "deck" and data['from'] != "discard":
-        return false, "Wrong place"
+        return False, "Wrong place"
     if data['from'] == "deck":
         if len(cardStack) == 0:
-            return false, "Deck is already empty"
+            return False, "Deck is already empty"
         newcard = cardStack.pop()
-        return true, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}})
+        return True, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}})
     elif data['from'] == "discard":
         if turn == 0:
             LastPlayer = 3
         else:
             LastPlayer = turn - 1
         if len(discard[LastPlayer]) == 0:
-            return false,"No cards there"
+            return False,"No cards there"
         newcard = discard[LastPlayer].pop()
-        return true, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}})
+        return True, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}})
 
 def RecvDataChk(data,turn):
     if not "player" in data or data['player'] < 1 or data['player'] > 4:
-        return false,"Player number fault"
+        return False,"Player number fault"
     if data['player'] != turn + 1:
-        return false, "Not this player's round"
+        return False, "Not this player's round"
     if not "action" in data:
-        return false, "No action specified"
-    return true, ""
+        return False, "No action specified"
+    return True, ""
 
 
 def Game(s,logType):
@@ -65,6 +69,7 @@ def Game(s,logType):
 
             if not errState:
                 s.sendall(Err(errMsg))
+                continue
 
             if data['action'] == "hand":
                 getHand(s,player[turn])
@@ -78,7 +83,7 @@ def Game(s,logType):
                 else:
                     s.sendall(Err(takeMsg))
             elif data['action'] == "throw":
-                ThrowCard()
+                throwState,throwMsg = ThrowCard(data, turn, player)
 
 
         if turn == 3:
