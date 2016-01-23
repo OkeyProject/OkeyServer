@@ -3,6 +3,7 @@
 import socket
 import json
 import thread
+from game import Game
 
 HOST = "140.113.235.151"
 PORT = 7975
@@ -22,15 +23,19 @@ def recvDataDecoder(data):
 
 def main(s, addr):
     data = recvDataDecoder(s.recv(2048))
-    if data['command'] == "game":
+    if "command" in data and data['command'] == "game":
         if "setting" in data and "log" in data['setting']:
-            if data['setting']['log'] != "verbose" or data['setting']['log'] != "separate":
+            print(data['setting']['log'])
+            if data['setting']['log'] != "verbose" and data['setting']['log'] != "separate":
                 s.sendall(Err("Unknown log type"))
             else:
+                s.sendall(json.dumps({"status": 1, "message": "game start"}))
                 print("Game Start")
+                Game(s, data['setting']['log'])
         else:
             s.sendall(Err("Setting Error"))
-
+    else:
+        s.sendall(Err("error"))
 
 while True:
     connection, address = s.accept()
