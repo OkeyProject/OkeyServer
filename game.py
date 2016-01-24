@@ -1,6 +1,7 @@
 from random import shuffle
 import json
 import socket
+import collections
 
 def Err(msg):
     return json.dumps({"status": 0, "message": msg})
@@ -9,12 +10,27 @@ def getHand(s,hand):
     msg = {"status": 1,"cards":[{"color":i[0],"number":i[1]} for i in hand]}
     s.sendall(json.dumps(msg))
 
-def ThrowCard(data, turn, player):
+def ThrowCard(data, turn, player, curDrawed):
     if not "cards" in data:
         return False, "Parse cards error"
     if len(data['cards']) != 24:
         return False, "Cards amount error"
-    return True
+    newHand = [(i['color'],i['number']) for i in data['cards']]
+    oldHand = player[turn] + [curDrawed]
+    newCmp = collections.Counter(newHand)
+    oldCmp = collections.Counter(oldHand)
+    oldCmp.subtract(newCmp)
+    result = oldCmp.most_common(24)
+    resultCount = 0
+    for i in result:
+        if int(i[1]) < 0 or int(i[1]) > 1:
+            return False,"Do not cheat"
+        elif int(i[1]) == 1 and resultCount == 0:
+            resultCount = resultCount + 1
+    if resultCount != 1:
+        return False,"Do not cheat"
+    else:
+        return True,json.dumps({"status": 1,"message":"Complete!"})
 
 def TakeCard(data, turn ,cardStack, discard):
     if not "from" in data:
@@ -37,9 +53,11 @@ def TakeCard(data, turn ,cardStack, discard):
         return True, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}})
 
 def RecvDataChk(data,turn):
-    if not "player" in data or data['player'] < 1 or data['player'] > 4:
+    if not "player" in data:
+        return False,"data error"
+    if int(data['player']) < 1 or int(data['player']) > 4:
         return False,"Player number fault"
-    if data['player'] != turn + 1:
+    if int(data['player']) != turn + 1:
         return False, "Not this player's round"
     if not "action" in data:
         return False, "No action specified"
@@ -62,8 +80,9 @@ def Game(s,logType):
     turn = 0
     while True:
         gameState = 0
+        curDrawed = []
         while True:
-            data = json.dumps(s.recv(2048))
+            data = json.loads(s.recv(2048))
 
             errState,errMsg = RecvDataChk(data,turn)
 
@@ -77,13 +96,17 @@ def Game(s,logType):
                 if gameState != 0:
                     s.sendall(Err("You've take the card already"))
                     continue
-                takeState, takeMsg = TakeCard(data, turn, cardStack, discard)
+                takeState, takeMsg = TakeCard(data, turn, cardStack, discard, curDrawed)
                 if takeState:
                     s.sendall(takeMsg)
                 else:
                     s.sendall(Err(takeMsg))
             elif data['action'] == "throw":
-                throwState,throwMsg = ThrowCard(data, turn, player)
+                throwState,throwMsg = ThrowCard(data, turn, player,curDrawed)
+                if throwState:
+                    s.sendall(throwMsg)
+                else:
+                    s.sendall(Err(throwMsg))
 
 
         if turn == 3:
