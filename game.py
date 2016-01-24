@@ -4,6 +4,7 @@ import socket
 import collections
 
 def Err(msg):
+    print(str(msg)+"\n\n")
     return json.dumps({"status": 0, "message": msg})
 
 def getHand(s,hand):
@@ -104,9 +105,13 @@ def Game(s,logType):
                 else:
                     s.sendall(Err(takeMsg))
             elif data['action'] == "throw":
+                if gameState != 1:
+                    s.sendall(Err("Please take before you throw"))
+                    continue
                 throwState,throwMsg = ThrowCard(data, turn, player,curDrawed)
                 if throwState:
                     s.sendall(throwMsg)
+                    gameState = 0
                     break
                 else:
                     s.sendall(Err(throwMsg))
