@@ -34,23 +34,23 @@ def ThrowCard(data, turn, player, curDrawed):
 
 def TakeCard(data, turn ,cardStack, discard):
     if not "from" in data:
-        return False, "Where to take card?"
+        return False, "Where to take card?",[]
     if data['from'] != "deck" and data['from'] != "discard":
-        return False, "Wrong place"
+        return False, "Wrong place",[]
     if data['from'] == "deck":
         if len(cardStack) == 0:
-            return False, "Deck is already empty"
+            return False, "Deck is already empty",[]
         newcard = cardStack.pop()
-        return True, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}})
+        return True, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}}), newcard
     elif data['from'] == "discard":
         if turn == 0:
             LastPlayer = 3
         else:
             LastPlayer = turn - 1
         if len(discard[LastPlayer]) == 0:
-            return False,"No cards there"
+            return False,"No cards there",[]
         newcard = discard[LastPlayer].pop()
-        return True, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}})
+        return True, json.dumps({"status": 1,"card":{"color":newcard[0],"number":newcard[1]}}),newcard
 
 def RecvDataChk(data,turn):
     if not "player" in data:
@@ -92,12 +92,13 @@ def Game(s,logType):
 
             if data['action'] == "hand":
                 getHand(s,player[turn])
-            elif data['action'] == "take":
                 if gameState != 0:
                     s.sendall(Err("You've take the card already"))
                     continue
-                takeState, takeMsg = TakeCard(data, turn, cardStack, discard, curDrawed)
+            elif data['action'] == "take":
+                takeState, takeMsg, curDrawed = TakeCard(data, turn, cardStack, discard)
                 if takeState:
+                    print(curDrawed)
                     s.sendall(takeMsg)
                 else:
                     s.sendall(Err(takeMsg))
@@ -105,6 +106,7 @@ def Game(s,logType):
                 throwState,throwMsg = ThrowCard(data, turn, player,curDrawed)
                 if throwState:
                     s.sendall(throwMsg)
+                    break
                 else:
                     s.sendall(Err(throwMsg))
 
