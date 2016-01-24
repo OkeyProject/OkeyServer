@@ -4,7 +4,7 @@ import socket
 import collections
 
 def Err(msg):
-    print(str(msg)+"\n\n")
+    print(str(msg)+"\n")
     return json.dumps({"status": 0, "message": msg})
 
 def getHand(s,hand):
@@ -13,9 +13,9 @@ def getHand(s,hand):
 
 def ThrowCard(data, turn, player, curDrawed):
     if not "cards" in data:
-        return False, "Parse cards error"
+        return False, "Parse cards error",[]
     if len(data['cards']) != 24:
-        return False, "Cards amount error"
+        return False, "Cards amount error",[]
     newHand = [(i['color'],i['number']) for i in data['cards']]
     oldHand = player[turn] + [curDrawed]
     newCmp = collections.Counter(newHand)
@@ -23,15 +23,17 @@ def ThrowCard(data, turn, player, curDrawed):
     oldCmp.subtract(newCmp)
     result = oldCmp.most_common(24)
     resultCount = 0
+    thrownCard = []
     for i in result:
         if int(i[1]) < 0 or int(i[1]) > 1:
-            return False,"Do not cheat"
+            return False,"Do not cheat",[]
         elif int(i[1]) == 1 and resultCount == 0:
+            thrownCard = i[0]
             resultCount = resultCount + 1
     if resultCount != 1:
-        return False,"Do not cheat"
+        return False,"Do not cheat",[]
     else:
-        return True,json.dumps({"status": 1,"message":"Complete!"})
+        return True,json.dumps({"status": 1,"message":"Complete!"}),thrownCard
 
 def TakeCard(data, turn ,cardStack, discard):
     if not "from" in data:
@@ -83,7 +85,10 @@ def Game(s,logType):
         gameState = 0
         curDrawed = []
         while True:
-            data = json.loads(s.recv(2048))
+            try:
+                data = json.loads(s.recv(2048))
+            except ValueError:
+                print("JSON decode failed")
 
             errState,errMsg = RecvDataChk(data,turn)
 
@@ -108,8 +113,10 @@ def Game(s,logType):
                 if gameState != 1:
                     s.sendall(Err("Please take before you throw"))
                     continue
-                throwState,throwMsg = ThrowCard(data, turn, player,curDrawed)
+                throwState,throwMsg,thrownCard = ThrowCard(data, turn, player,curDrawed)
                 if throwState:
+                    print(thrownCard)
+                    player[turn].append(thrownCard)
                     s.sendall(throwMsg)
                     gameState = 0
                     break
