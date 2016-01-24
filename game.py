@@ -92,9 +92,6 @@ def Game(s,logType):
 
             if data['action'] == "hand":
                 getHand(s,player[turn])
-                if gameState != 0:
-                    s.sendall(Err("You've take the card already"))
-                    continue
             elif data['action'] == "take":
                 if gameState != 0:
                     s.sendall(Err("You've take the card already"))
@@ -102,6 +99,7 @@ def Game(s,logType):
                 takeState, takeMsg, curDrawed = TakeCard(data, turn, cardStack, discard)
                 if takeState:
                     print(curDrawed)
+                    gameState = 1
                     s.sendall(takeMsg)
                 else:
                     s.sendall(Err(takeMsg))
