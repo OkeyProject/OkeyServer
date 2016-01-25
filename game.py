@@ -7,15 +7,65 @@ def Err(msg):
     print(str(msg)+"\n")
     return json.dumps({"status": 0, "message": msg})
 
-def getHand(s,hand):
-    msg = {"status": 1,"cards":[{"color":i[0],"number":i[1]} for i in hand]}
+def IsStraight(group):
+    group.sort(key=lambda x: x[1])
+    cmpVal = group[0][1]
+    for i in group:
+        if i[1] != cmpVal:
+            return False
+        cmpVal = cmpVal + 1
+    return True
+
+def IsKind(group):
+    colors = collections.Counter(group)
+    result =colors.most_common(24)
+    for i in result:
+        if int(i[1]) != 1:
+            return False
+    cmpVal = group[0][1]
+    for i in group:
+        if i[1] != cmpVal:
+            return False
+    return True
+
+def GroupChk(group):
+    if len(group) < 3:
+        return False
+    if IsStraight(group) or IsKind(group):
+        return True
+    else:
+        return False
+
+def WinChk(hand):
+    start = -1
+    end = 0
+    for i in range(0,len(hand)):
+        if hand[i][0] != "empty" and start < end:
+            start = i
+        elif hand[i][0] != "empty" and start >= end:
+            end = i + 1
+            if not GroupChk(hand[start:end]):
+                return False
+    return True
+
+def getHand(s,hand,deck):
+    msg = {"status": 1,"cards":{"hand":[{"color":i[0],"number":i[1]} for i in hand],"deck":{"all":{},"top":{}}}}
+    for j in range(1,5):
+        msg['cards']['deck']['all'].update({"player"+str(j):[]})
+        msg['cards']['deck']['top'].update({"player"+str(j):{}})
+    for i in range(1,5):
+        msg['cards']['deck']['all']['player'+str(i)] = [{"color":j[0],"number":j[1]} for j in deck[int(i)-1]]
+        if len(deck[int(i)-1]) > 0:
+            msg['cards']['deck']['top']['player'+str(i)] = {"color":deck[int(i)-1][-1:][0],"number":deck[int(i)-1][-1:][1]}
+
+    print(msg)
     s.sendall(json.dumps(msg))
 
 def ThrowCard(data, turn, player, curDrawed):
     if not "cards" in data:
-        return False, "Parse cards error",[]
+        return False, "Parse cards error",[],False
     if len(data['cards']) != 24:
-        return False, "Cards amount error",[]
+        return False, "Cards amount error",[],False
     newHand = [(i['color'],i['number']) for i in data['cards']]
     oldHand = player[turn] + [curDrawed]
     newCmp = collections.Counter(newHand)
@@ -26,14 +76,17 @@ def ThrowCard(data, turn, player, curDrawed):
     thrownCard = []
     for i in result:
         if int(i[1]) < 0 or int(i[1]) > 1:
-            return False,"Do not cheat",[]
+            return False,"Do not cheat",[],False
         elif int(i[1]) == 1 and resultCount == 0:
             thrownCard = i[0]
             resultCount = resultCount + 1
     if resultCount != 1:
-        return False,"Do not cheat",[]
+        return False,"Do not cheat",[],False
     else:
-        return True,json.dumps({"status": 1,"message":"Complete!"}),thrownCard
+        if WinChk([(i[0],i[1]) for i in data['cards']]):
+            return True,json.dumps({"status": 1,"message":"You Win !!","Win":1}),thrownCard,True
+        else:
+            return True,json.dumps({"status": 1,"message":"Complete!","Win":0}),thrownCard,False
 
 def TakeCard(data, turn ,cardStack, discard):
     if not "from" in data:
@@ -84,6 +137,7 @@ def Game(s,logType):
     while True:
         gameState = 0
         curDrawed = []
+        isWin = False
         while True:
             try:
                 data = json.loads(s.recv(2048))
@@ -97,14 +151,14 @@ def Game(s,logType):
                 continue
 
             if data['action'] == "hand":
-                getHand(s,player[turn])
+                getHand(s,player[turn],discard)
             elif data['action'] == "take":
                 if gameState != 0:
                     s.sendall(Err("You've take the card already"))
                     continue
                 takeState, takeMsg, curDrawed = TakeCard(data, turn, cardStack, discard)
                 if takeState:
-                    print(curDrawed)
+                    print("take: "+str(curDrawed))
                     gameState = 1
                     s.sendall(takeMsg)
                 else:
@@ -113,16 +167,19 @@ def Game(s,logType):
                 if gameState != 1:
                     s.sendall(Err("Please take before you throw"))
                     continue
-                throwState,throwMsg,thrownCard = ThrowCard(data, turn, player,curDrawed)
+                throwState,throwMsg,thrownCard,isWin = ThrowCard(data, turn, player,curDrawed)
                 if throwState:
-                    print(thrownCard)
-                    player[turn].append(thrownCard)
+                    print("throw: "+str(thrownCard))
+                    discard[turn].append(thrownCard)
                     s.sendall(throwMsg)
                     gameState = 0
                     break
                 else:
                     s.sendall(Err(throwMsg))
 
+        if isWin:
+            s.close()
+            break
 
         if turn == 3:
             turn = 0
