@@ -56,9 +56,12 @@ def getHand(s,hand,deck):
     for i in range(1,5):
         msg['cards']['deck']['all']['player'+str(i)] = [{"color":j[0],"number":j[1]} for j in deck[int(i)-1]]
         if len(deck[int(i)-1]) > 0:
-            msg['cards']['deck']['top']['player'+str(i)] = {"color":deck[int(i)-1][-1:][0],"number":deck[int(i)-1][-1:][1]}
+            dl = len(deck[int(i)-1])
+            msg['cards']['deck']['top']['player'+str(i)] = {"color":deck[int(i)-1][dl-1][0],"number":deck[int(i)-1][dl-1][1]}
+        else:
+            msg['cards']['deck']['top']['player'+str(i)] = {"color":"empty","number":-1}
 
-    print(msg)
+
     s.sendall(json.dumps(msg))
 
 def ThrowCard(data, turn, player, curDrawed):
@@ -83,7 +86,7 @@ def ThrowCard(data, turn, player, curDrawed):
     if resultCount != 1:
         return False,"Do not cheat",[],False
     else:
-        if WinChk([(i[0],i[1]) for i in data['cards']]):
+        if WinChk([(i['color'],i['number']) for i in data['cards']]):
             return True,json.dumps({"status": 1,"message":"You Win !!","Win":1}),thrownCard,True
         else:
             return True,json.dumps({"status": 1,"message":"Complete!","Win":0}),thrownCard,False
