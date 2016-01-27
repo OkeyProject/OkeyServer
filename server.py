@@ -12,7 +12,7 @@ address = (HOST,PORT)
 
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 s.bind(address)
-s.listen(10)
+s.listen(30)
 
 def Err(msg):
     retmsg = {"status": 0, "message": msg}

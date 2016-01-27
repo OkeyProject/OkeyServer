@@ -60,7 +60,7 @@ def getHand(s,hand,deck):
             msg['cards']['deck']['top']['player'+str(i)] = {"color":deck[int(i)-1][dl-1][0],"number":deck[int(i)-1][dl-1][1]}
         else:
             msg['cards']['deck']['top']['player'+str(i)] = {"color":"empty","number":-1}
-
+    print(msg)
 
     s.sendall(json.dumps(msg))
 
@@ -89,6 +89,7 @@ def ThrowCard(data, turn, player, curDrawed):
         if WinChk([(i['color'],i['number']) for i in data['cards']]):
             return True,json.dumps({"status": 1,"message":"You Win !!","Win":1}),thrownCard,True
         else:
+            player[turn] = [(i['color'],i['number']) for i in data['cards']]
             return True,json.dumps({"status": 1,"message":"Complete!","Win":0}),thrownCard,False
 
 def TakeCard(data, turn ,cardStack, discard):
@@ -142,10 +143,7 @@ def Game(s,logType):
         curDrawed = []
         isWin = False
         while True:
-            try:
-                data = json.loads(s.recv(2048))
-            except ValueError:
-                print("JSON decode failed")
+            data = json.loads(s.recv(2048))
 
             errState,errMsg = RecvDataChk(data,turn)
 
@@ -162,6 +160,7 @@ def Game(s,logType):
                 takeState, takeMsg, curDrawed = TakeCard(data, turn, cardStack, discard)
                 if takeState:
                     print("take: "+str(curDrawed))
+                    print("\n\n")
                     gameState = 1
                     s.sendall(takeMsg)
                 else:
@@ -173,6 +172,7 @@ def Game(s,logType):
                 throwState,throwMsg,thrownCard,isWin = ThrowCard(data, turn, player,curDrawed)
                 if throwState:
                     print("throw: "+str(thrownCard))
+                    print("\n\n")
                     discard[turn].append(thrownCard)
                     s.sendall(throwMsg)
                     gameState = 0
