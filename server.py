@@ -5,7 +5,7 @@ import json
 import thread
 from game import Game
 
-HOST = "140.113.235.151"
+HOST = "140.113.123.225"
 PORT = 7975
 
 address = (HOST,PORT)
